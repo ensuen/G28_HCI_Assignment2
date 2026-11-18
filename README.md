@@ -16,7 +16,7 @@ Open a regular Terminal, navigate into the downloaded project folder (e.g., type
     source venv/bin/activate        # On Windows, use: venv\Scripts\activate
 
     # Install dependencies
-    pip install -r requirements.txt
+    python -m pip install -r requirements.txt
 
 Generate the `.env` file automatically by running this single command in the terminal (replace the placeholder with the shared API key stated in the G28 HCI Assignment 2 Report):
 
@@ -28,14 +28,14 @@ Generate the `.env` file automatically by running this single command in the ter
 
 Start the backend server (keep this terminal running):
 
-    uvicorn server:app --reload
+    python -m uvicorn server:app --reload
 
-*Verification: You should see `Uvicorn running on http://127.0.0.1:8000` in the terminal.*
+*Verification: You should see `Application startup complete.` and `Uvicorn running on http://127.0.0.1:8000` in the terminal.*
 
 ---
 
 ### 2. Start the Frontend App (Flutter)
-Open a **second** terminal in the project root directory and run:
+Open a **second** terminal, **navigate into the same downloaded project folder again** (type `cd ` and drag the folder into this new terminal), and run:
 
     flutter pub get
     flutter run -d chrome
