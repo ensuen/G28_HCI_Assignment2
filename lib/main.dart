@@ -10,9 +10,36 @@ void main() async {
   await Firebase.initializeApp( //initialize firebase
     options: DefaultFirebaseOptions.currentPlatform, //Set the default configuration for current platform
   );
-  runApp(const MaterialApp(
+  runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: ChatScreen(), // Set ChatScreen as the main screen when the app starts
+    // Constrain viewport to mobile dimensions (430x932) on desktop/web browsers
+    builder: (context, child) {
+      return Container(
+        color: const Color(0xFFE5E7EB),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 430,
+              maxHeight: 932,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      );
+    },
+    home: const ChatScreen(), // Set ChatScreen as the main screen when the app starts
   ));
 }
 
@@ -47,8 +74,10 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
   final TextEditingController _controller = TextEditingController(); //TextEditingController() = controller class provided by Flutter to manage TextField or TextFormField 
   bool _isLoading = false;
 
-  // Initializes the audio player using the audioplayers package API
+  // Initializes the audio players using the audioplayers package API
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _bgMusicPlayer = AudioPlayer();
+  bool _isMusicPlaying = false; // Default muted state so the mute icon is visible initially
 
   //get current time
   String _getCurrentTime() {
@@ -68,14 +97,35 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
   @override
   void dispose() {
     _audioPlayer.dispose(); // Calls the parent class dispose method
+    _bgMusicPlayer.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  // Toggles looping background audio playback when tapping the top GIF display
+  Future<void> _toggleItemMusic() async {
+    try {
+      if (_isMusicPlaying) {
+        await _bgMusicPlayer.pause();
+        setState(() {
+          _isMusicPlaying = false;
+        });
+      } else {
+        await _bgMusicPlayer.setReleaseMode(ReleaseMode.loop);
+        await _bgMusicPlayer.play(AssetSource('audio/item_music.mp3'));
+        setState(() {
+          _isMusicPlaying = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("Music Playback Error: $e");
+    }
   }
 
   // Plays a sound effect when a message is sent successfully (Audio API).
   Future<void> _playSendSound() async {
     try {
-      await _audioPlayer.play(AssetSource('audio/send.mp3')); // Wait for  audio player to load and start playing the MP3 asset.
+      await _audioPlayer.play(AssetSource('audio/send.mp3')); // Wait for audio player to load and start playing the MP3 asset.
     } catch (e) {
       debugPrint("Audio Playback Error (Send): $e");
     }
@@ -130,7 +180,7 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
         return ScaleTransition(
           scale: curvedAnimation, // Apply a scaling animation to the dialog.
           child: FadeTransition(
-            opacity: animation, // // Apply a fade-in and fade-out effect to the dialog.透明度
+            opacity: animation, // Apply a fade-in and fade-out effect to the dialog.
             child: Dialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
               backgroundColor: const Color(0xFFFFF9E6),
@@ -209,10 +259,10 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
       final result = await ModerationService.checkMessage(text); //Call the checkMessage() method within the ModerationService class
       
       //mounted: true=page running, false=page closed
-      //!mouted: if page is closed, end the function
+      //!mounted: if page is closed, end the function
       if (!mounted) return; 
 
-      if (!result.allowed) { //message not allowed, display block diaglog
+      if (!result.allowed) { //message not allowed, display block dialog
         _showBlockedDialog(
           result.reason,
           result.detail?.toString() ?? '', // If result.detail has content, converted to String; if it is null, use empty string ''
@@ -249,7 +299,7 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
     return Scaffold(  // Return a Scaffold widget to provide the basic page layout
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar( //layout: [ leading ]  [ title ]  [ actions ]
-        elevation: 0, //阴影
+        elevation: 0, //shadow
         backgroundColor: const Color(0xFFF7F7F7),
         leading: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20), 
         title: Text(
@@ -272,6 +322,48 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
       body: SafeArea(
         child: Column(
           children: [
+            // Top centered rotating GIF display with top-right mute badge
+            // Top centered transparent rotating GIF display with top-right mute badge
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0, bottom: 2.0),
+              child: GestureDetector(
+                onTap: _toggleItemMusic,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // No border or background box — pure transparent floating item
+                    SizedBox(
+                      width: 145, // Enlarged size (previously 110)
+                      height: 145,
+                      child: Image.asset(
+                        'assets/images/kaws.gif',
+                        fit: BoxFit.contain, // Ensures the entire figure is visible without cropping
+                      ),
+                    ),
+
+                    // Top-right mute icon (shown when muted, disappears when playing)
+                    if (!_isMusicPlaying)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.volume_off_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
             // today date
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0), //EdgeInsets: A utility class in Flutter for defining margins/spacing
@@ -281,14 +373,14 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
               ),
             ),
             
-          Expanded( //Fill the remaining available space in the parent Row or Column. (Safe Area-column)
+            Expanded( //Fill the remaining available space in the parent Row or Column. (Safe Area-column)
               child: StreamBuilder<QuerySnapshot>( 
                 //StreamBuilder: Listen to a stream ('messages' collection) and rebuild the UI whenever new data arrives.
                 stream: FirebaseFirestore.instance
                     .collection('messages')
                     .orderBy('timestamp', descending: false)
                     .snapshots(), // Returns a continuous Stream of QuerySnapshot to automatically trigger UI rebuilds when Firestore data updates
-                // 'snapshot': snapshot of  latest data and connection state received from the Firestore stream
+                // 'snapshot': snapshot of latest data and connection state received from the Firestore stream
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(
@@ -303,20 +395,20 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
                     return const Center(child: CircularProgressIndicator()); //loading circle
                   }
 
-                  //Retrieves  list of DocumentSnapshots from the query snapshot
-                  final docs = snapshot.data?.docs ?? []; //?? [] (Null-coalescing Operator
+                  //Retrieves list of DocumentSnapshots from the query snapshot
+                  final docs = snapshot.data?.docs ?? []; //?? [] (Null-coalescing Operator)
 
                   return ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     // 1. Sets the total loop count equal to the number of Firestore documents.
                     itemCount: docs.length,
-                    // 2. Flutter automatically increments 'index' (index++) internally behind the scenes,repeatedly invoking this itemBuilder callback until 'index' reaches 'itemCount'.
+                    // 2. Flutter automatically increments 'index' (index++) internally behind the scenes, repeatedly invoking this itemBuilder callback until 'index' reaches 'itemCount'.
                     // When database update: StreamBuilder recalculates the list logic upon data updates, but Flutter's underlying Diffing algorithm reuses unchanged elements, ensuring near-zero-latency rendering.
                     itemBuilder: (context, index) {
                       final doc = docs[index];
                       final data = doc.data() as Map<String, dynamic>;
                       // String key = dynamic data
-                      String text = data['text'] ?? ''; // ??Null-coalescing operator：Defaults to an empty string if null
+                      String text = data['text'] ?? ''; // ??Null-coalescing operator: Defaults to an empty string if null
                       String sender = data['sender'] ?? '';
                       bool isRead = data['isRead'] ?? false;
 
@@ -324,7 +416,7 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
                       bool isMe = (sender == currentRole);
 
                       // 2. Automatic read receipt: If it's an incoming unread message, update Firestore
-                      if (!isMe && !isRead) { //meesage not from me & haven't read
+                      if (!isMe && !isRead) { //message not from me & haven't read
                         Future.microtask(() { // Schedules a microtask to update state right after the current build phase completes, avoiding build-phase errors.
                           FirebaseFirestore.instance
                               .collection('messages')
@@ -344,12 +436,12 @@ class _ChatScreenState extends State<ChatScreen> { // _ private
 
                       return Column(
                         crossAxisAlignment:
-                            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, //end: msg靠右对齐; start: msg靠左对齐
+                            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, //end: msg right-aligned; start: msg left-aligned
                         children: [
                           // Chat bubble container
                           Container(
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            constraints: const BoxConstraints(
+                              maxWidth: 300,
                             ),
                             margin: const EdgeInsets.only(top: 8, bottom: 2),
                             padding: const EdgeInsets.all(16),

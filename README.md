@@ -9,6 +9,7 @@ A cross-platform Flutter chat application backed by Firebase Cloud Firestore and
 ## How to Run
 
 ### 1. Start the Backend Server (FastAPI + AI Moderation)
+Click the green **`<> Code`** button on this GitHub repository page and select **Download ZIP**. Furthermore, **Unzip (extract)** the downloaded file.
 Open a regular Terminal, navigate into the downloaded project folder (e.g., type `cd ` and drag the folder into the terminal), and run:
 
     # Create and activate virtual environment

@@ -64,6 +64,8 @@ flutter:
   assets:
     - assets/audio/send.mp3
     - assets/audio/alert.mp3
+    - assets/audio/item_music.mp3
+    - assets/images/kaws.gif
 
   # To add assets to your application, add an assets section, like this:
   # assets:
